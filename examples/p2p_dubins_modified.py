@@ -20,20 +20,26 @@
 from omgtools import *
 
 # create vehicle
-vehicle = DubinsModified(bounds={'vmax': 0.7, 'wmax': np.pi/3., 'wmin': -np.pi/3.}, # in rad/s
+vehicle = DubinsModified(bounds={'vmax': .5, 'amax': 1., 'amin': -1., 'wmax': np.pi/3., 'wmin': -np.pi/3.}, # in rad/s
                  options={'substitution': True})
 vehicle.define_knots(knot_intervals=5)  # choose lower amount of knot intervals
 
-vehicle.set_initial_conditions([0., 0., 0.],[0.,0.])  # input orientation in rad
-vehicle.set_terminal_conditions([3., 3., 0.],[0.,0.])
+# Format for initial and final conditions: (x,y,\theta), (V, \dot(\theta) )
+# TODO \dot(\theta) is not being considered. It is always set to 0.
+# The following problem is feasible
+vehicle.set_initial_conditions([1., 1., 0.],[0.5,0.])  # input orientation in rad
+vehicle.set_terminal_conditions([2., 1., 0.],[0.5,0.]) 
+
+# The following problem is infeasible but a solution is obtained
+#vehicle.set_initial_conditions([1., 1., 0.],[0.5,0.])  # input orientation in rad
+#vehicle.set_terminal_conditions([2., 1., 0.],[0.5,0.]) 
+
+# The following problem obtains a wrong solution (most probably due to the tangent half angle substitution)
+#vehicle.set_initial_conditions([1., 1., np.pi/2. + np.pi/4.],[0.5,0.])  # input orientation in rad
+#vehicle.set_terminal_conditions([0., 1., -np.pi/2. - np.pi/4.],[0.5,0.])
 
 # create environment
 environment = Environment(room={'shape': Square(5.), 'position': [1.5, 1.5]})
-
-trajectories = {'velocity': {'time': [0.5],
-                             'values': [[0.25, 0.0]]}}
-environment.add_obstacle(Obstacle({'position': [1., 1.]}, shape=Circle(0.5),
-                                  simulation={'trajectories': trajectories}))
 
 # create a point-to-point problem
 problem = Point2point(vehicle, environment, freeT=True)
@@ -51,9 +57,11 @@ problem.plot('scene')
 vehicle.plot('input', knots=True, labels=['v (m/s)', 'w (rad/s)'])
 vehicle.plot('state', knots=True, labels=['x (m)', 'y (m)', 'theta (rad)'])
 
-if vehicle.options['substitution']:
-    vehicle.plot('err_pos', knots=True)
-    vehicle.plot('err_dpos', knots=True)
-
 # run it!
-simulator.run()
+trajectories, signals = simulator.run()
+
+T=trajectories['time'][-1][-1][-1]
+state = trajectories['state'][0]
+Vf=trajectories['input'][0][0][-1]
+print(Vf)
+time.sleep(5.5) 

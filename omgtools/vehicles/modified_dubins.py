@@ -214,7 +214,7 @@ class DubinsModified(Vehicle):
     def get_init_spline_value(self):
         # generate initial guess for spline variables
         init_value = np.zeros((len(self.basis), 2))
-        v_til0 = np.zeros(len(self.basis))
+        v_til0 = .5*np.ones(len(self.basis))
         tg_ha0 = np.tan(self.prediction['state'][2]/2.)
         tg_haT = np.tan(self.poseT[2]/2.)
         init_value[:, 0] = v_til0
