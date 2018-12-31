@@ -27,12 +27,12 @@ vehicle.define_knots(knot_intervals=5)  # choose lower amount of knot intervals
 # Format for initial and final conditions: (x,y,\theta), (V, \dot(\theta) )
 # TODO \dot(\theta) is not being considered. It is always set to 0.
 # The following problem is feasible
-vehicle.set_initial_conditions([1., 1., 0.],[0.5,0.])  # input orientation in rad
-vehicle.set_terminal_conditions([2., 1., 0.],[0.5,0.]) 
-
-# The following problem is infeasible but a solution is obtained
 #vehicle.set_initial_conditions([1., 1., 0.],[0.5,0.])  # input orientation in rad
 #vehicle.set_terminal_conditions([2., 1., 0.],[0.5,0.]) 
+
+# The following problem is infeasible but a solution is obtained
+vehicle.set_initial_conditions([1., 1., np.pi/4.],[0.5,0.])  # input orientation in rad
+vehicle.set_terminal_conditions([2., 1., -np.pi/4.],[0.5,0.]) 
 
 # The following problem obtains a wrong solution (most probably due to the tangent half angle substitution)
 #vehicle.set_initial_conditions([1., 1., np.pi/2. + np.pi/4.],[0.5,0.])  # input orientation in rad
@@ -63,5 +63,10 @@ trajectories, signals = simulator.run()
 T=trajectories['time'][-1][-1][-1]
 state = trajectories['state'][0]
 Vf=trajectories['input'][0][0][-1]
-print(Vf)
-time.sleep(5.5) 
+
+diff = [np.linalg.norm(np.array(state[0][i+1],state[1][i+1]) - np.array(state[0][i],state[1][i])) for i in range(state.shape[1] - 1)]
+traj_length = np.sum(diff)
+
+print 'The final velocity is: %.2f m/s' % Vf  
+print 'The trajectory time is: %.2f s' % T 
+print 'The trajectory length is: %.2f m' % traj_length
