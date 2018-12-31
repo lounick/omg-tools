@@ -26,6 +26,9 @@ from ..basics.spline import BSplineBasis
 from casadi import inf, SX, MX
 import numpy as np
 
+# List of modifications:
+# - Set final contraints on the input (forward velocity and angular speed=0)
+
 # Elaboration of the vehicle model:
 # dx = V*cos(theta)
 # dy = V*sin(theta)
@@ -44,7 +47,7 @@ import numpy as np
 # Spline variables of the problem: v_til and tg_ha
 
 
-class Dubins(Vehicle):
+class DubinsModified(Vehicle):
 
     def __init__(self, shapes=Circle(0.1), options=None, bounds=None):
         bounds = bounds or {}
@@ -182,6 +185,7 @@ class Dubins(Vehicle):
         if horizon_time is None:
             horizon_time = self.define_symbol('T')  # motion time
         posT = self.define_parameter('posT', 2)
+        inputT = self.define_parameter('inputT', 2)
         tg_haT = self.define_parameter('tg_haT', 1)
         v_til, tg_ha = splines
         dv_til = v_til.derivative()
@@ -193,7 +197,7 @@ class Dubins(Vehicle):
             x = self.integrate_once(dx, self.pos0[0], self.t, horizon_time)
             y = self.integrate_once(dy, self.pos0[1], self.t, horizon_time)
         term_con = [(x, posT[0]), (y, posT[1]), (tg_ha, tg_haT)]
-        term_con_der = [(v_til, 0.), (tg_ha.derivative(), 0.)]
+        term_con_der = [(v_til, inputT[0]), (tg_ha.derivative(), 0.)]  # !!! True because we are forcing input[1] = 0. Input are forward and angular speed.
         return [term_con, term_con_der]
 
     def set_initial_conditions(self, state, input=None):
@@ -203,8 +207,9 @@ class Dubins(Vehicle):
         self.prediction['input'] = input
         self.pose0 = state
 
-    def set_terminal_conditions(self, pose):
+    def set_terminal_conditions(self, pose, input=None):
         self.poseT = pose
+        self.inputT = input
 
     def get_init_spline_value(self):
         # generate initial guess for spline variables
@@ -220,7 +225,7 @@ class Dubins(Vehicle):
     def check_terminal_conditions(self):
         tol = self.options['stop_tol']
         if (np.linalg.norm(self.signals['state'][:, -1] - self.poseT) > tol or
-                np.linalg.norm(self.signals['input'][:, -1])) > tol:
+                np.linalg.norm(self.signals['input'][:, -1] - self.inputT)) > tol:  # !!! True because we are forcing input[1] = 0. Input are forward and angular speed.
             return False
         else:
             return True
@@ -239,6 +244,7 @@ class Dubins(Vehicle):
         parameters[self]['pos0'] = self.prediction['state'][:2]
         parameters[self]['posT'] = self.poseT[:2]  # x,y
         parameters[self]['tg_haT'] = np.tan(self.poseT[2]/2.)
+        parameters[self]['inputT'] = self.inputT
         return parameters
 
     def define_collision_constraints(self, hyperplanes, environment, splines, horizon_time=None):
