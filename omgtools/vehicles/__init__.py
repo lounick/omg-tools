@@ -4,6 +4,7 @@ from holonomic3d import Holonomic3D
 from holonomic1d import Holonomic1D
 from quadrotor import Quadrotor
 from dubins import Dubins
+from modified_dubins import DubinsModified
 from bicycle import Bicycle
 from agv import AGV
 from trailer import Trailer
