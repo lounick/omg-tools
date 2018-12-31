@@ -59,7 +59,7 @@ class DubinsModified(Vehicle):
             self, n_spl=2, degree=degree, shapes=shapes, options=options)
         self.vmax = bounds['vmax'] if 'vmax' in bounds else 0.5
         self.amax = bounds['amax'] if 'amax' in bounds else 1.
-        # self.amin = bounds['amin'] if 'amin' in bounds else -1.
+        self.amin = bounds['amin'] if 'amin' in bounds else -1.
         self.wmin = bounds['wmin'] if 'wmin' in bounds else -np.pi/6. # in rad/s
         self.wmax = bounds['wmax'] if 'wmax' in bounds else np.pi/6.
 
@@ -86,10 +86,10 @@ class DubinsModified(Vehicle):
         self.define_constraint(-v_til, -inf, 0)  # only forward driving, positive v_tilde
 
         # acceleration constraint
-        # self.define_constraint(
-        #     dv_til*(1+tg_ha**2) + 2*v_til*tg_ha*dtg_ha - horizon_time*self.amax, -inf, 0.)
-        # self.define_constraint(
-        #     -dv_til*(1+tg_ha**2) - 2*v_til*tg_ha*dtg_ha + horizon_time*self.amin, -inf, 0.)
+        self.define_constraint(
+             dv_til*(1+tg_ha**2) + 2*v_til*tg_ha*dtg_ha - horizon_time*self.amax, -inf, 0.)
+        self.define_constraint(
+             -dv_til*(1+tg_ha**2) - 2*v_til*tg_ha*dtg_ha + horizon_time*self.amin, -inf, 0.)
 
 
         if self.options['substitution']:
