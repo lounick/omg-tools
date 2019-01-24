@@ -97,11 +97,13 @@ class Holonomic(Vehicle):
 
     def get_terminal_constraints(self, splines, horizon_time=None):
         position = self.define_parameter('poseT', 2)
+        input = self.define_parameter('inputT', 2)
         x, y = splines
         term_con = [(x, position[0]), (y, position[1])]
         term_con_der = []
-        for d in range(1, self.degree+1):
-            term_con_der.extend([(x.derivative(d), 0.), (y.derivative(d), 0.)])
+        term_con_der.extend([(x.derivative(1), horizon_time*input[0]), (y.derivative(1), horizon_time*input[1])])
+        for d in range(2, self.degree+1):
+            term_con_der.extend([(x.derivative(d), 0), (y.derivative(d), 0)])
         return [term_con, term_con_der]
 
     def set_initial_conditions(self, state, input=None):
@@ -112,12 +114,14 @@ class Holonomic(Vehicle):
         self.prediction['input'] = input
         self.prediction['dinput'] = np.zeros(2)
 
-    def set_terminal_conditions(self, position):
+    def set_terminal_conditions(self, position, input=None):
         self.poseT = position
+        self.inputT = input
 
     def get_init_spline_value(self, subgoals=None):
         pos0 = self.prediction['state']
         posT = self.poseT
+        inputT = self.inputT
         if self.n_seg == 1:  # default
             init_value = np.zeros((len(self.basis), 2))
             for k in range(2):
@@ -133,6 +137,7 @@ class Holonomic(Vehicle):
                 init_value = []
                 subgoals.insert(0, pos0)  # add initial pos
                 subgoals.append(posT)  # add goal pos
+                subgoals.append(inputT)  # add goal pos
                 for l in range(len(subgoals)-1):
                     init_val = np.zeros((len(self.basis), 2))
                     for k in range(2):
@@ -145,7 +150,7 @@ class Holonomic(Vehicle):
     def check_terminal_conditions(self):
         tol = self.options['stop_tol']
         if (np.linalg.norm(self.signals['state'][:, -1] - self.poseT) > tol or
-                np.linalg.norm(self.signals['input'][:, -1])) > tol:
+                np.linalg.norm(self.signals['input'][:, -1] - self.inputT) ) > tol:
             return False
         else:
             return True
@@ -156,6 +161,7 @@ class Holonomic(Vehicle):
         parameters[self]['input0'] = self.prediction['input']
         # parameters[self]['dinput0'] = self.prediction['dinput']
         parameters[self]['poseT'] = self.poseT
+        parameters[self]['inputT'] = self.inputT
         return parameters
 
     def define_collision_constraints(self, hyperplanes, room, splines, horizon_time):

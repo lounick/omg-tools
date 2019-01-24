@@ -21,34 +21,33 @@ from omgtools import *
 
 # create vehicle
 vehicle = Holonomic()
-vehicle.set_options({'safety_distance': 0.1})
-vehicle.set_options({'ideal_prediction': False})
 
-vehicle.set_initial_conditions([-1.5, -1.5])
-vehicle.set_terminal_conditions([2., 2.])
+vehicle.set_initial_conditions([0., 0.],[0.5, 0.])
+vehicle.set_terminal_conditions([0., 1.], [0.5,0.])
 
 # create environment
 environment = Environment(room={'shape': Square(5.)})
-rectangle = Rectangle(width=3., height=0.2)
-
-# environment.add_obstacle(Obstacle({'position': [-2.1, -0.5]}, shape=rectangle))
-# environment.add_obstacle(Obstacle({'position': [1.7, -0.5]}, shape=rectangle))
-trajectories = {'velocity': {'time': [0., 40.],
-                             'values': [[-0.35, 0.35], [0., 0.15]]}}
-environment.add_obstacle(Obstacle({'position': [1.5, -1]}, shape=Circle(0.5), options={'bounce':False},
-                                  simulation={'trajectories': trajectories}))
 
 # create a point-to-point problem
-problem = Point2point(vehicle, environment, freeT=False)
+problem = Point2point(vehicle, environment, freeT=True)
 problem.init()
 
 # create simulator
 simulator = Simulator(problem)
 problem.plot('scene')
-vehicle.plot('input', knots=True, prediction=True, labels=['v_x (m/s)', 'v_y (m/s)'])
+#vehicle.plot('input', knots=True, prediction=True, labels=['v_x (m/s)', 'v_y (m/s)'])
+#vehicle.plot('dinput', knots=True, prediction=True, labels=['a_x (m/s)', 'a_y (m/s)'])
 
 # run it!
-simulator.run()
+trajectories, signals = simulator.run()
 
-problem.save_movie('scene', format='gif', name='problemgif', number_of_frames=80, movie_time=4, axis=False)
+T=trajectories['time'][-1][-1][-1]
+state = trajectories['state'][0]
+
+diff = [np.linalg.norm( np.array([state[0][i+1],state[1][i+1]]) - np.array([state[0][i],state[1][i]])) for i in range(state.shape[1] - 1)]
+traj_length = np.sum(diff)
+
+print 'The trajectory time is: %.2f s' % T 
+print 'The trajectory length is: %.2f m' % traj_length
+
 
