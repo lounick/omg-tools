@@ -39,8 +39,10 @@ class Simulator:
     def run(self):
         self.deployer.reset()
         stop = False
-        while not stop:
+        force_stop = 0  # Prevent MPC loop..
+        while (not stop and force_stop < 1):
             stop = self.update()
+            force_stop += 1
             ### adapted ###
             if (stop or self.update_time - float(self.problem.vehicles[0].signals['time'][:, -1] - self.current_time)) > self.sample_time:
                 update_time = float(self.problem.vehicles[0].signals['time'][:, -1] - self.current_time)
