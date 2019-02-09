@@ -150,7 +150,7 @@ class Holonomic(Vehicle):
     def check_terminal_conditions(self):
         tol = self.options['stop_tol']
         if (np.linalg.norm(self.signals['state'][:, -1] - self.poseT) > tol or
-                np.linalg.norm(self.signals['input'][:, -1] - self.inputT) ) > tol:
+                np.linalg.norm(self.signals['input'][:, -1] - self.inputT) ) > tol*50:
             return False
         else:
             return True

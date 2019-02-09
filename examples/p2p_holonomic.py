@@ -35,7 +35,7 @@ problem.init()
 # create simulator
 simulator = Simulator(problem)
 problem.plot('scene')
-#vehicle.plot('input', knots=True, prediction=True, labels=['v_x (m/s)', 'v_y (m/s)'])
+vehicle.plot('input', knots=True, prediction=True, labels=['v_x (m/s)', 'v_y (m/s)'])
 #vehicle.plot('dinput', knots=True, prediction=True, labels=['a_x (m/s)', 'a_y (m/s)'])
 
 # run it!
@@ -50,4 +50,4 @@ traj_length = np.sum(diff)
 print 'The trajectory time is: %.2f s' % T 
 print 'The trajectory length is: %.2f m' % traj_length
 
-
+time.sleep(5)
