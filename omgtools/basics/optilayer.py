@@ -540,7 +540,7 @@ class OptiChild(object):
         rest = ''.join(label_split[:-1])
         if index.isdigit():
             if label in cls._labels:
-                #return rest+str(int(index)+1)  # Just one more trick to avoid label depth exception
+                return rest+str(int(index)+1)  # Just one more trick to avoid label depth exception
                 return cls._make_label(rest+str(int(index)+1))
             else:
                 cls._labels.append(label)

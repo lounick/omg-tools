@@ -3,91 +3,68 @@
 
 
 from omgtools import *
+import pickle
 
-def ComputeCostMatrix(WP, init, final, nv_vel_steps):
-    # Robot configuration
-    [v_min, v_max] = [-.5, .5]
-    [a_min, a_max] = [-1, 1]
-
-    # Possible departure/arrival configurations
-    theta = np.linspace(0, 2*np.pi, nb_vel_steps + 1 )
-    vel_vec_i = v_max*np.array([np.cos(theta[0:-1]), np.sin(theta[0:-1])])
-    vel_vec_f = v_max*np.array([np.cos(theta[0:-1]), np.sin(theta[0:-1])])
-    if init <= 0:
-        vel_vec_i = vel_vec_i*0
-    if final >= np.size(WP)/2-1: 
-        vel_vec_f = vel_vec_f*0
-
-    # Cost Matrix # TODO: how to organize the data structure for this?
-    # right now: cost = [WPi WPf theta_init theta_term duration length v_cost]
-    cost = np.zeros([nb_vel_steps**2, 8])
-
+def ComputeCostMatrix(dist, grid_size, v_max):
     ## OMG-tools
+    # Robot configuration
+    vehicle = Holonomic()
+    vehicle.set_options({'ideal_prediction': False})
+    vehicle.set_initial_conditions([0., 0.],[0., 0.]) # dummy: required for problem.init()
+    vehicle.set_terminal_conditions([0., 0.],[0., 0.]) # dummy: required for problem.init()
     # Environment
-    environment = Environment(room={'shape': Square(30.), 
-                                    'position': [-5, -5]})  # TODO: this shouldn't be a fixed size..
-    # Evaluate for each initial and final velocity constraint 
-    k = 0
-    for v_init in range(0, nb_vel_steps):
-        for v_term in range(0, nb_vel_steps):
-            # Creating holonomic vehicle instance
-            vehicle =  Holonomic(bounds={'vmin': v_min, 'vmax': v_max, 'amin': a_min, 'amax': a_max})
-            #vehicle =  Holonomic(options={'syslimit':'norm_2'})
-            vehicle.set_initial_conditions(WP[:,init], vel_vec_i[:, v_init].reshape(2,1) )
-            vehicle.set_terminal_conditions(WP[:,final], vel_vec_f[:, v_term].reshape(2,1) )
-            # Construct the problem
-            problem = Point2point(vehicle, environment, freeT=True)
-            problem.set_options({'verbose': 0})
-            problem.init()
-            # Set simulator
-            simulator = Simulator(problem)
-            #problem.plot('scene')        # Comment this line if the plot annoys you
-            # solve
-            trajectories, signals = simulator.run()
+    environment = Environment(room={'shape': Square(20.), 'position': [-5, -5]}) 
+    # create a point-to-point problem
+    problem = Point2point(vehicle, environment, freeT=True)
+    problem.set_options({'verbose': 0})
+    problem.init()    
+    # create deployer
+    update_time = .1
+    sample_time = 0.01
+    current_time = 0
+    current_state = [.0, .0]
+    deployer = Deployer(problem, sample_time, update_time)
 
-            # Compute metrics
-            T=trajectories['time'][-1][-1][-1]  # for trajectory time
-            dt = trajectories['time'][0][0][1] - trajectories['time'][0][0][0]
-            state = trajectories['state'][0]  # x,y position
-            vel = trajectories['input'][0]  # x,y velocities  
-            acc = trajectories['dinput'][0]  # x,y accelerations  
-            
-            diff = [np.linalg.norm( np.array([state[0][i+1],state[1][i+1]]) - np.array([state[0][i],state[1][i]])) for i in range(state.shape[1] - 1)]
-            traj_length = np.sum(diff)
-            v_cost = sum(sum(vel*vel, 0)*dt)
-            acc_cost = sum(sum(acc*acc, 0)*dt)
-            # Update cost matrix
-            cost[k][0] = init
-            cost[k][1] = final
-            cost[k][2] = v_init #theta[v_init]
-            cost[k][3] = v_term #theta[v_term]
-            cost[k][4] = T
-            cost[k][5] = traj_length
-            cost[k][6] = v_cost   
-            cost[k][7] = acc_cost               
-            k += 1
+    # Velocity vector
+    theta = np.linspace(0, 2*np.pi, 2**(grid_size+1) + 1 )
+    vel = v_max*np.array([np.cos(theta[0:-1]), np.sin(theta[0:-1])])
+    vel = np.concatenate( (np.zeros([2,1]), vel ),axis=1 )
 
+    # Cost Matrix
+    cost = np.zeros([grid_size,grid_size, 2**(grid_size+1)+1, 2**(grid_size+1)+1])
+   
+    for x in range(1, grid_size):
+        for y in range(0, x+1):
+            for v_init in range(0, 2**(grid_size+1)+1):
+                for v_final in range(0, 2**(grid_size+1)+1):
+                    #if (v_init == 0 and v_final == 0):
+                    #    continue
+                    state_traj = np.c_[current_state]
+                    input_traj = np.c_[vel[:, v_init]]
+                    wpf = np.array([np.sqrt(x*x+y*y),0.])*dist
+                    # # Creating holonomic vehicle instance
+                    vehicle.set_initial_conditions([0,0], vel[:,v_init])
+                    vehicle.set_terminal_conditions(wpf, vel[:, v_final])
+                    # # Construct the problem
+                    # #vehicle.set_initial_conditions(via_point) # for init guess
+                    deployer.reset() # let's start from new initial guess
+                    # # update motion planning
+                    trajectories = deployer.update(current_time, current_state, input_traj, None, None, False, True)
+                    # # store state & input trajectories -> simulation of ideal trajectory following
+                    state = np.c_[state_traj, trajectories['state'][:, :]]
+                    diff = [np.linalg.norm( np.array([state[0][i+1],state[1][i+1]]) - np.array([state[0][i],state[1][i]])) for i in range(state.shape[1] - 1)]
+                    traj_length = np.sum(diff)
+                    T=trajectories['time'][0][-1]  # for trajectory time
+                    cost[x,y,v_init,v_final] = traj_length                   
     return cost
 
-cost_file=open('cost.txt','w+')
-bl_wp = np.array([0,0])  # bottom left waypoint
-ur_wp = np.array([6,6])  # upper right waypoint
-size = [7,7] # nb of elements in the (x,y) axes
-nb_vel_steps = 4
-xx, yy = np.meshgrid(np.linspace(bl_wp[0], ur_wp[0], size[0]), 
-                    np.linspace(bl_wp[1], ur_wp[1], size[1]) )
+# Grid parameters    
+size = 3
+dist = 1
+# Vehicle parameters
+v_max = .5
 
-numel_WP = size[0]*size[1]  # number of waypoints in the grid
-WP = np.array( [ xx.reshape(1,numel_WP)[0], yy.reshape(1,numel_WP)[0] ] )
-tic = time.time()
-for i in range(0,numel_WP):
-    for f in range(0,numel_WP):
-        if(i==f):
-            continue       
-        cost = ComputeCostMatrix(WP, i, f, nb_vel_steps)
-        for k in range(0, cost.shape[0]):
-            cost_file.write( ' '.join(map(str,cost[k])) + '\n' )
-
-print "Total time: ", time.time() - tic
-
-cost_file.close()
+cost = ComputeCostMatrix(dist, size, v_max)
+file = open('cost', 'wb')
+pickle.dump(cost, file)
+file.close()

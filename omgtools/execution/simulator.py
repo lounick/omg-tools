@@ -40,7 +40,7 @@ class Simulator:
         self.deployer.reset()
         stop = False
         force_stop = 0  # Prevent MPC loop..
-        while (not stop):# and force_stop < 1):
+        while (not stop and force_stop < 1):
             stop = self.update()
             force_stop += 1
             ### adapted ###
