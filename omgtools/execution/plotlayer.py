@@ -323,7 +323,8 @@ class PlotLayer(object):
 
     def save_movie(self, argument=None, name='movie', path='movies/',
                    format='tikz', **kwargs):
-        t = self.__class__.simulator.time
+        # t = self.__class__.simulator.time
+        t = self.vehicles[0].signals['time'][0]
         if ('number_of_frames' in kwargs and
                 kwargs['number_of_frames'] <= (len(t)-1)):
             nof = kwargs['number_of_frames']

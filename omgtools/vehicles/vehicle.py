@@ -313,7 +313,10 @@ class Vehicle(OptiChild, PlotLayer):
                 self.set_initial_conditions(state0)
             else:
                 if hasattr(self, 'signals'):
-                    self.set_initial_conditions(self.signals['state'][:, -1])
+                    if self.signals['input'] is None:
+                      self.set_initial_conditions(self.signals['state'][:, -1])
+                    else:
+                      self.set_initial_conditions(self.signals['state'][:, -1], self.signals['input'][:,-1])
             return
         n_samp = int(np.round(predict_time/sample_time, 6))
         if self.options['ideal_prediction']:
