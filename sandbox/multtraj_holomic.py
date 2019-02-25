@@ -4,8 +4,9 @@
 
 from omgtools import *
 import pickle
+import time
 
-def ComputeCostMatrix(dist, grid_size, v_max):
+def ComputeCostMatrix(dist, grid_size, vel_steps, v_max):
     ## OMG-tools
     # Robot configuration
     vehicle = Holonomic()
@@ -13,7 +14,7 @@ def ComputeCostMatrix(dist, grid_size, v_max):
     vehicle.set_initial_conditions([0., 0.],[0., 0.]) # dummy: required for problem.init()
     vehicle.set_terminal_conditions([0., 0.],[0., 0.]) # dummy: required for problem.init()
     # Environment
-    environment = Environment(room={'shape': Square(20.), 'position': [-5, -5]}) 
+    environment = Environment(room={'shape': Square(40.), 'position': [-10, -10]}) 
     # create a point-to-point problem
     problem = Point2point(vehicle, environment, freeT=True)
     problem.set_options({'verbose': 0})
@@ -26,22 +27,22 @@ def ComputeCostMatrix(dist, grid_size, v_max):
     deployer = Deployer(problem, sample_time, update_time)
 
     # Velocity vector
-    theta = np.linspace(0, 2*np.pi, 2**(grid_size+1) + 1 )
+    theta = np.linspace(0, 2*np.pi, vel_steps + 1 )
     vel = v_max*np.array([np.cos(theta[0:-1]), np.sin(theta[0:-1])])
     vel = np.concatenate( (np.zeros([2,1]), vel ),axis=1 )
 
     # Cost Matrix
-    cost = np.zeros([grid_size,grid_size, 2**(grid_size+1)+1, 2**(grid_size+1)+1])
+    cost = np.zeros([grid_size,grid_size, vel_steps+1, vel_steps+1])
    
     for x in range(1, grid_size):
         for y in range(0, x+1):
-            for v_init in range(0, 2**(grid_size+1)+1):
-                for v_final in range(0, 2**(grid_size+1)+1):
+            for v_init in range(0, vel_steps+1):
+                for v_final in range(0, vel_steps+1):
                     #if (v_init == 0 and v_final == 0):
                     #    continue
                     state_traj = np.c_[current_state]
                     input_traj = np.c_[vel[:, v_init]]
-                    wpf = np.array([np.sqrt(x*x+y*y),0.])*dist
+                    wpf = np.array([x,y])*dist
                     # # Creating holonomic vehicle instance
                     vehicle.set_initial_conditions([0,0], vel[:,v_init])
                     vehicle.set_terminal_conditions(wpf, vel[:, v_final])
@@ -59,12 +60,16 @@ def ComputeCostMatrix(dist, grid_size, v_max):
     return cost
 
 # Grid parameters    
-size = 3
+grid_size = 10
+vel_steps = 8
 dist = 1
 # Vehicle parameters
 v_max = .5
 
-cost = ComputeCostMatrix(dist, size, v_max)
-file = open('cost', 'wb')
+tic = time.time()
+cost = ComputeCostMatrix(dist, grid_size, vel_steps, v_max)
+toc = time.time()
+file = open('cost8', 'wb')
 pickle.dump(cost, file)
 file.close()
+print toc - tic
