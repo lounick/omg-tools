@@ -9,6 +9,7 @@ import time
 def ComputeCostMatrix(dist, grid_size, vel_steps, v_max):
     ## OMG-tools
     # Robot configuration
+    #vehicle = Holonomic(options={'syslimit': 'norm_2'})
     vehicle = Holonomic()
     vehicle.set_options({'ideal_prediction': False})
     vehicle.set_initial_conditions([0., 0.],[0., 0.]) # dummy: required for problem.init()
@@ -52,15 +53,27 @@ def ComputeCostMatrix(dist, grid_size, vel_steps, v_max):
                     # # update motion planning
                     trajectories = deployer.update(current_time, current_state, input_traj, None, None, False, True)
                     # # store state & input trajectories -> simulation of ideal trajectory following
-                    state = np.c_[state_traj, trajectories['state'][:, :]]
-                    diff = [np.linalg.norm( np.array([state[0][i+1],state[1][i+1]]) - np.array([state[0][i],state[1][i]])) for i in range(state.shape[1] - 1)]
-                    traj_length = np.sum(diff)
-                    T=trajectories['time'][0][-1]  # for trajectory time
-                    cost[x,y,v_init,v_final] = traj_length                   
+                    t = trajectories['time'][0] 
+                    T= trajectories['time'][0][-1]  # for trajectory time
+                    dt = trajectories['time'][0][1] - trajectories['time'][0][0] 
+                    # Position
+                    pos = np.c_[state_traj, trajectories['state'][:, :]]
+                    diff = [np.linalg.norm( np.array([pos[0][i+1],pos[1][i+1]]) - np.array([pos[0][i],pos[1][i]])) for i in range(pos.shape[1] - 1)]
+                    cost_traj_length = np.sum(diff)
+                    # Velocity
+                    input_traj = np.c_[trajectories['input'][:, :]]
+                    input_traj_abs = np.sqrt(sum(input_traj*input_traj))
+                    cost_vel_cube = dt*sum(input_traj_abs**3)
+                    # Acceleration
+                    dinput_traj = np.c_[trajectories['dinput'][:, :]]
+                    dinput_traj_abs = np.sqrt(sum(dinput_traj*dinput_traj))
+                    cost_acc_vel = dt*sum(dinput_traj_abs*input_traj_abs)
+                    #print x,y,v_init,v_final, cost_traj_length                                 
+                    cost[x,y,v_init,v_final] = cost_vel_cube + cost_acc_vel
     return cost
 
 # Grid parameters    
-grid_size = 10
+grid_size = 8
 vel_steps = 8
 dist = 1
 # Vehicle parameters
@@ -69,7 +82,7 @@ v_max = .5
 tic = time.time()
 cost = ComputeCostMatrix(dist, grid_size, vel_steps, v_max)
 toc = time.time()
-file = open('cost8', 'wb')
+file = open('cost', 'wb')
 pickle.dump(cost, file)
 file.close()
 print toc - tic
